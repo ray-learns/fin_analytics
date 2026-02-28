@@ -49,7 +49,6 @@ with st.spinner(f"Analyzing {selected_name}..."):
 
 if df is not None and not df.empty:
     # 5. COLUMN IDENTIFICATION
-    # yfinance uses specific names; we find them dynamically
     rev_col = next((c for c in df.columns if "Total Revenue" in c), None)
     cost_col = next((c for c in df.columns if "Cost Of Revenue" in c), None)
 
@@ -58,12 +57,4 @@ if df is not None and not df.empty:
 
     if rev_col:
         # We plot Revenue (also representing Sales)
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[rev_col],
-            mode='lines+markers',
-            name='Total Revenue / Sales',
-            line=dict(color='#00d1ff', width=4)
-        ))
-
-    if cost_col:
-        # We plot Cost of Revenue
+        fig.add_trace(go.Scatter
