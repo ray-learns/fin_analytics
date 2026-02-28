@@ -4,10 +4,10 @@ import yfinance as yf
 import plotly.graph_objects as go
 
 # 1. PAGE SETUP
-st.set_page_config(page_title="Corporate P/L Analyzer", page_icon="📊", layout="wide")
+st.set_page_config(page_title="P/L Trend Analyzer", page_icon="📈", layout="wide")
 
-st.title("📊 Corporate Profit & Loss (P/L) Analyzer")
-st.markdown("Fetch and analyze the annual Income Statement (P/L) for NIFTY 50 companies directly from Yahoo Finance.")
+st.title("📈 Corporate Financial Trend Analyzer")
+st.markdown("This app visualizes the movement of **Revenue** and **Cost of Revenue** over the last 5 years.")
 
 # 2. NIFTY 50 TICKER DICTIONARY
 nifty50_dict = {
@@ -21,84 +21,49 @@ nifty50_dict = {
     "Asian Paints": "ASIANPAINT.NS", "ONGC": "ONGC.NS", "Power Grid": "POWERGRID.NS"
 }
 
-# 3. SIDEBAR CONTROLS
-st.sidebar.header("Navigation")
+# 3. SIDEBAR
+st.sidebar.header("Settings")
 selected_name = st.sidebar.selectbox("Select Company", options=list(nifty50_dict.keys()))
 ticker_symbol = nifty50_dict[selected_name]
 
-# 4. DATA FETCHING FUNCTION
+# 4. DATA FETCHING
 @st.cache_data
-def get_pl_statement(ticker):
+def get_financial_trends(ticker):
     try:
         stock = yf.Ticker(ticker)
-        # .financials returns the annual Income Statement (P/L)
-        pl_data = stock.financials
-        return pl_data
-    except Exception as e:
+        # Fetching Annual Income Statement
+        df = stock.financials.transpose()
+        
+        # Clean the Index (Dates) to just show the Year
+        df.index = pd.to_datetime(df.index).year
+        df = df.sort_index(ascending=True) # Ensure chronological order
+        
+        # Select the last 5 available years
+        df = df.tail(5)
+        return df
+    except:
         return None
 
-# 5. MAIN LOGIC
-with st.spinner(f"Loading P/L Statement for {selected_name}..."):
-    pl_df = get_pl_statement(ticker_symbol)
+with st.spinner(f"Analyzing {selected_name}..."):
+    df = get_financial_trends(ticker_symbol)
 
-if pl_df is not None and not pl_df.empty:
-    
-    # --- METRICS SUMMARY ---
-    # We transpose to get dates as rows for easier extraction
-    df_t = pl_df.transpose()
-    
-    # Clean the index to show only Year
-    df_t.index = pd.to_datetime(df_t.index).year
-    
-    st.subheader(f"Financial Summary: {selected_name}")
-    
-    # Use fallback names because yfinance headers can vary slightly
-    rev_key = next((c for c in df_t.columns if "Total Revenue" in c), None)
-    net_key = next((c for c in df_t.columns if "Net Income" in c), None)
+if df is not None and not df.empty:
+    # 5. COLUMN IDENTIFICATION
+    # yfinance uses specific names; we find them dynamically
+    rev_col = next((c for c in df.columns if "Total Revenue" in c), None)
+    cost_col = next((c for c in df.columns if "Cost Of Revenue" in c), None)
 
-    if rev_key and net_key:
-        latest_rev = df_t[rev_key].iloc[0]
-        latest_net = df_t[net_key].iloc[0]
-        margin = (latest_net / latest_rev) * 100
-
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Total Revenue (Latest Year)", f"₹{latest_rev/1e7:,.2f} Cr")
-        m2.metric("Net Income (Latest Year)", f"₹{latest_net/1e7:,.2f} Cr")
-        m3.metric("Net Profit Margin", f"{margin:.2f}%")
-
-    # --- VISUALIZATION ---
-    st.write("---")
-    st.subheader("Revenue vs. Net Income Growth")
-    
+    # 6. PLOTTING
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=df_t.index, y=df_t[rev_key], name="Total Revenue", marker_color='#00d1ff'))
-    fig.add_trace(go.Bar(x=df_t.index, y=df_t[net_key], name="Net Income", marker_color='#00ff88'))
-    
-    fig.update_layout(
-        template="plotly_dark",
-        barmode='group',
-        xaxis_title="Year",
-        yaxis_title="Amount (INR)",
-        hovermode="x unified"
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
-    # --- FULL P/L TABLE ---
-    st.write("---")
-    st.subheader("Full Income Statement (Annual)")
-    st.dataframe(pl_df.style.format("{:,.0f}"), use_container_width=True)
+    if rev_col:
+        # We plot Revenue (also representing Sales)
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df[rev_col],
+            mode='lines+markers',
+            name='Total Revenue / Sales',
+            line=dict(color='#00d1ff', width=4)
+        ))
 
-    # --- DOWNLOAD BUTTON ---
-    csv = pl_df.to_csv().encode('utf-8')
-    st.download_button(
-        label="📥 Download P/L Statement as CSV",
-        data=csv,
-        file_name=f"{selected_name}_PL_Statement.csv",
-        mime='text/csv',
-    )
-
-else:
-    st.error(f"Financial data for {ticker_symbol} is currently unavailable. Some companies may not have updated filings on Yahoo Finance.")
-
-st.markdown("---")
-st.caption("Data source: Yahoo Finance API | Figures in Absolute INR (unless stated otherwise)")
+    if cost_col:
+        # We plot Cost of Revenue
