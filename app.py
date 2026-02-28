@@ -57,4 +57,41 @@ if df is not None and not df.empty:
 
     if rev_col:
         # We plot Revenue (also representing Sales)
-        fig.add_trace(go.Scatter
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df[rev_col],
+            mode='lines+markers',
+            name='Total Revenue / Sales',
+            line=dict(color='#00d1ff', width=4)
+        ))
+
+    if cost_col:
+        # FIXED: This block must be indented
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df[cost_col],
+            mode='lines+markers',
+            name='Cost of Revenue',
+            line=dict(color='#FF4B4B', width=4, dash='dash')
+        ))
+
+    fig.update_layout(
+        title=f"5-Year Revenue & Cost Trend: {selected_name}",
+        template="plotly_dark",
+        xaxis=dict(tickmode='linear', title="Year"),
+        yaxis_title="Amount (INR)",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # 7. SUMMARY INSIGHT
+    if rev_col:
+        latest_year = df.index[-1]
+        growth = ((df[rev_col].iloc[-1] - df[rev_col].iloc[0]) / df[rev_col].iloc[0]) * 100
+        st.info(f"**Quick Insight:** Since {df.index[0]}, {selected_name} has seen a **{growth:.1f}%** change in Total Revenue.")
+
+else:
+    st.error("Financial Statement not found for this ticker. Please try another company.")
+
+st.markdown("---")
+st.caption("Data: Yahoo Finance | Built with Streamlit")
