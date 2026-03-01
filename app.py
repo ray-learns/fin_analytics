@@ -30,7 +30,6 @@ ticker_symbol = nifty50_dict[selected_name]
 def get_all_statements(ticker):
     try:
         stock = yf.Ticker(ticker)
-        # Fetching the three core statements
         income_stmt = stock.financials
         balance_sheet = stock.balance_sheet
         cash_flow = stock.cashflow
@@ -43,32 +42,18 @@ with st.spinner(f"Fetching financial data for {selected_name}..."):
     income, balance, cash = get_all_statements(ticker_symbol)
 
 if income is not None:
-    # Creating Tabs for navigation
-    tab1, tab2, tab3 = st.tabs(["Profit & Loss (Income Statement)", "Balance Sheet", "Cash Flow Statement"])
+    # Creating Tabs
+    tab1, tab2, tab3 = st.tabs(["Profit & Loss Account", "Balance Sheet", "Cash Flow Statement"])
 
-    
+    # Helper function to format the DataFrames
+    def format_df(df):
+        # 1. Convert columns (dates) to DD-MM-YYYY string format
+        df.columns = pd.to_datetime(df.columns).strftime('%d-%m-%Y')
+        # 2. Slice to show last 5 years
+        df = df.iloc[:, :5]
+        # 3. Apply Rupees symbol and comma formatting
+        return df.style.format("₹ {:,.0f}")
 
     with tab1:
-        st.subheader("Profit & Loss Account (Annual)")
-        # Display the last 5 columns (Years) if available
-        st.dataframe(income.iloc[:, :5].style.format("{:,.0f}"), use_container_width=True)
-
-    with tab2:
-        st.subheader("Balance Sheet (Annual)")
-        st.dataframe(balance.iloc[:, :5].style.format("{:,.0f}"), use_container_width=True)
-
-    with tab3:
-        st.subheader("Cash Flow Statement (Annual)")
-        st.dataframe(cash.iloc[:, :5].style.format("{:,.0f}"), use_container_width=True)
-
-    # 6. EXPORT OPTION
-    st.write("---")
-    if st.button("Download All Statements as Excel"):
-        # Logic for creating a multi-sheet Excel could be added here
-        st.info("To export, you can copy the data directly from the tables above.")
-
-else:
-    st.error("Financial records for this ticker could not be retrieved. Please try another company.")
-
-st.markdown("---")
-st.caption("Data provided by Yahoo Finance API | Values in absolute INR")
+        st.subheader(f"Profit & Loss Account (Annual) - Figures in ₹")
+        st.dataframe(format_df(income), use_container_width=
