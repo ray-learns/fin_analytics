@@ -56,4 +56,18 @@ if income is not None:
 
     with tab1:
         st.subheader(f"Profit & Loss Account (Annual) - Figures in ₹")
-        st.dataframe(format_df(income), use_container_width=
+        st.dataframe(format_df(income), use_container_width=True)
+
+    with tab2:
+        st.subheader(f"Balance Sheet (Annual) - Figures in ₹")
+        st.dataframe(format_df(balance), use_container_width=True)
+
+    with tab3:
+        st.subheader(f"Cash Flow Statement (Annual) - Figures in ₹")
+        st.dataframe(format_df(cash), use_container_width=True)
+
+else:
+    st.error("Financial records for this ticker could not be retrieved.")
+
+st.markdown("---")
+st.caption("Data source: Yahoo Finance | All amounts are in Indian Rupees (₹)")
