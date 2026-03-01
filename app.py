@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-import plotly.graph_objects as go
 
 # 1. PAGE SETUP
-st.set_page_config(page_title="P/L Trend Analyzer", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Corporate Financial Statements", page_icon="📑", layout="wide")
 
-st.title("📈 Corporate Financial Trend Analyzer")
-st.markdown("This app visualizes the movement of **Revenue** and **Cost of Revenue** over the last 5 years.")
+st.title("📑 Corporate Financial Statements Viewer")
+st.markdown("View the annual P/L Account, Balance Sheet, and Cash Flow Statement for NIFTY 50 companies.")
 
 # 2. NIFTY 50 TICKER DICTIONARY
 nifty50_dict = {
@@ -22,76 +21,54 @@ nifty50_dict = {
 }
 
 # 3. SIDEBAR
-st.sidebar.header("Settings")
-selected_name = st.sidebar.selectbox("Select Company", options=list(nifty50_dict.keys()))
+st.sidebar.header("Select Company")
+selected_name = st.sidebar.selectbox("Choose a Ticker", options=list(nifty50_dict.keys()))
 ticker_symbol = nifty50_dict[selected_name]
 
-# 4. DATA FETCHING
+# 4. DATA FETCHING FUNCTION
 @st.cache_data
-def get_financial_trends(ticker):
+def get_all_statements(ticker):
     try:
         stock = yf.Ticker(ticker)
-        # Fetching Annual Income Statement
-        df = stock.financials.transpose()
-        
-        # Clean the Index (Dates) to just show the Year
-        df.index = pd.to_datetime(df.index).year
-        df = df.sort_index(ascending=True) # Ensure chronological order
-        
-        # Select the last 5 available years
-        df = df.tail(5)
-        return df
+        # Fetching the three core statements
+        income_stmt = stock.financials
+        balance_sheet = stock.balance_sheet
+        cash_flow = stock.cashflow
+        return income_stmt, balance_sheet, cash_flow
     except:
-        return None
+        return None, None, None
 
-with st.spinner(f"Analyzing {selected_name}..."):
-    df = get_financial_trends(ticker_symbol)
+# 5. EXECUTION
+with st.spinner(f"Fetching financial data for {selected_name}..."):
+    income, balance, cash = get_all_statements(ticker_symbol)
 
-if df is not None and not df.empty:
-    # 5. COLUMN IDENTIFICATION
-    rev_col = next((c for c in df.columns if "Total Revenue" in c), None)
-    cost_col = next((c for c in df.columns if "Cost Of Revenue" in c), None)
+if income is not None:
+    # Creating Tabs for navigation
+    tab1, tab2, tab3 = st.tabs(["Profit & Loss (Income Statement)", "Balance Sheet", "Cash Flow Statement"])
 
-    # 6. PLOTTING
-    fig = go.Figure()
+    
 
-    if rev_col:
-        # We plot Revenue (also representing Sales)
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[rev_col],
-            mode='lines+markers',
-            name='Total Revenue / Sales',
-            line=dict(color='#00d1ff', width=4)
-        ))
+    with tab1:
+        st.subheader("Profit & Loss Account (Annual)")
+        # Display the last 5 columns (Years) if available
+        st.dataframe(income.iloc[:, :5].style.format("{:,.0f}"), use_container_width=True)
 
-    if cost_col:
-        # FIXED: This block must be indented
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[cost_col],
-            mode='lines+markers',
-            name='Cost of Revenue',
-            line=dict(color='#FF4B4B', width=4, dash='dash')
-        ))
+    with tab2:
+        st.subheader("Balance Sheet (Annual)")
+        st.dataframe(balance.iloc[:, :5].style.format("{:,.0f}"), use_container_width=True)
 
-    fig.update_layout(
-        title=f"5-Year Revenue & Cost Trend: {selected_name}",
-        template="plotly_dark",
-        xaxis=dict(tickmode='linear', title="Year"),
-        yaxis_title="Amount (INR)",
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+    with tab3:
+        st.subheader("Cash Flow Statement (Annual)")
+        st.dataframe(cash.iloc[:, :5].style.format("{:,.0f}"), use_container_width=True)
 
-    st.plotly_chart(fig, use_container_width=True)
-
-    # 7. SUMMARY INSIGHT
-    if rev_col:
-        latest_year = df.index[-1]
-        growth = ((df[rev_col].iloc[-1] - df[rev_col].iloc[0]) / df[rev_col].iloc[0]) * 100
-        st.info(f"**Quick Insight:** Since {df.index[0]}, {selected_name} has seen a **{growth:.1f}%** change in Total Revenue.")
+    # 6. EXPORT OPTION
+    st.write("---")
+    if st.button("Download All Statements as Excel"):
+        # Logic for creating a multi-sheet Excel could be added here
+        st.info("To export, you can copy the data directly from the tables above.")
 
 else:
-    st.error("Financial Statement not found for this ticker. Please try another company.")
+    st.error("Financial records for this ticker could not be retrieved. Please try another company.")
 
 st.markdown("---")
-st.caption("Data: Yahoo Finance | Built with Streamlit")
+st.caption("Data provided by Yahoo Finance API | Values in absolute INR")
